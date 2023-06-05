@@ -5,8 +5,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class AirportSearch {
-    private static final String DELIMITER = ";";
-    private static final Map<String, Integer> indexingCSV;
+    private static final String DELIMITER = ",";
+    private static final Map<String, List<Integer>> indexingCSV;
     private static final Scanner scanner = new Scanner(System.in);
     private static String pathToCSVFile;
 
@@ -22,12 +22,13 @@ public class AirportSearch {
                 flagIfFileExist = false;
                 String line;
                 while ((line = randomAccessFile.readLine()) != null) {
+                    Integer position = Math.toIntExact(randomAccessFile.getFilePointer()-line.length() - 1);
+                    line = line.replaceAll("\"", "");
                     String[] values = line.split(DELIMITER);
-                    if (values.length > 1 && !values[1].equals("Column2")) {
-                        String nameAirport = values[1].toLowerCase();
-                        int position = Math.toIntExact(randomAccessFile.getFilePointer() - line.length() - 2);
-                        indexingCSV.put(nameAirport, position);
-                    }
+                    String nameAirport = values[1].toLowerCase();
+                    List<Integer> positions = indexingCSV.getOrDefault(nameAirport, new ArrayList<>());
+                    positions.add(position);
+                    indexingCSV.put(nameAirport, positions);
                 }
             } catch (IOException e) {
                 System.out.println("This file does not exist, please try again");
@@ -40,18 +41,18 @@ public class AirportSearch {
         try {
             Filter filter = new Filter(stringFilter);
             long start = System.currentTimeMillis();
-            List<Integer> positions = indexingCSV.entrySet()
-                    .stream()
+            List<Integer> positions = indexingCSV.entrySet().stream()
                     .filter(e -> e.getKey().startsWith(airportName))
-                    .map(Map.Entry::getValue)
+                    .flatMap(e -> e.getValue().stream())
                     .sorted()
                     .collect(Collectors.toList());
             try(RandomAccessFile randomAccessFile = new RandomAccessFile(pathToCSVFile, "r")) {
                 for (long position : positions) {
                     randomAccessFile.seek(position);
                     String line1 = randomAccessFile.readLine();
+                    line1 = line1.replaceAll("\"", "");
                     String[] tokens = line1.split(DELIMITER);
-                    if(tokens[1].toLowerCase().startsWith(airportName) && filter.matches(tokens))
+                    if(filter.matches(tokens))
                     {
                         System.out.println(tokens[1] + " " + Arrays.toString(tokens));
                         countRows++;
@@ -71,7 +72,6 @@ public class AirportSearch {
         }
     }
     public static void main(String[] args) {
-
         String airportName, filter;
         boolean flag = true;
         do {
