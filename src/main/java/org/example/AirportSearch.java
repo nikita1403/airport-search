@@ -1,15 +1,12 @@
 package org.example;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class AirportSearch {
     private static final String DELIMITER = ";";
-    private static final Map<String, List<Integer>> indexingCSV;
+    private static final Map<String, Integer> indexingCSV;
     private static final Scanner scanner = new Scanner(System.in);
     private static String pathToCSVFile;
 
@@ -23,15 +20,13 @@ public class AirportSearch {
             pathToCSVFile = scanner.nextLine();
             try(RandomAccessFile randomAccessFile = new RandomAccessFile(pathToCSVFile, "r")) {
                 flagIfFileExist = false;
-                String line; // переменная для хранения строки
+                String line;
                 while ((line = randomAccessFile.readLine()) != null) {
                     String[] values = line.split(DELIMITER);
                     if (values.length > 1 && !values[1].equals("Column2")) {
                         String nameAirport = values[1].toLowerCase();
-                        List<Integer> positions = indexingCSV.getOrDefault(nameAirport, new ArrayList<>());
                         int position = Math.toIntExact(randomAccessFile.getFilePointer() - line.length() - 2);
-                        positions.add(position);
-                        indexingCSV.put(nameAirport, positions);
+                        indexingCSV.put(nameAirport, position);
                     }
                 }
             } catch (IOException e) {
@@ -45,15 +40,15 @@ public class AirportSearch {
         try {
             Filter filter = new Filter(stringFilter);
             long start = System.currentTimeMillis();
-            List<Integer> positions = indexingCSV.entrySet().stream()
+            List<Integer> positions = indexingCSV.entrySet()
+                    .stream()
                     .filter(e -> e.getKey().startsWith(airportName))
-                    .flatMap(e -> e.getValue().stream())
+                    .map(Map.Entry::getValue)
                     .sorted()
                     .collect(Collectors.toList());
             try(RandomAccessFile randomAccessFile = new RandomAccessFile(pathToCSVFile, "r")) {
                 for (long position : positions) {
                     randomAccessFile.seek(position);
-
                     String line1 = randomAccessFile.readLine();
                     String[] tokens = line1.split(DELIMITER);
                     if(tokens[1].toLowerCase().startsWith(airportName) && filter.matches(tokens))
@@ -74,7 +69,6 @@ public class AirportSearch {
         {
             System.out.println(e.getMessage());
         }
-
     }
     public static void main(String[] args) {
 
